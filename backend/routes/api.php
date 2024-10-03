@@ -20,8 +20,12 @@ Route::group([
 
 // Rotas protegidas por autenticação
 Route::group(['middleware' => 'auth:api'], function () {
+
+    Route::middleware('auth:api')->get('appointments/my', [AppointmentController::class, 'myAppointments']);
+
     // Rotas de marcações
     Route::apiResource('appointments', AppointmentController::class);
+
     // Rotas de veterinários
     Route::apiResource('veterinarians', VeterinarianController::class);
     // Rota para médicos verem suas próprias marcações

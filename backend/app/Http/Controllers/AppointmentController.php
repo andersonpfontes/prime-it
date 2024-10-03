@@ -30,7 +30,14 @@ class AppointmentController extends Controller
     // Criar uma nova marcação
     public function store(Request $request)
     {
+        if (is_array($request->period)) {
+            $request->merge([
+                'period' => $request->period['id']
+            ]);
+        }
+
         try {
+            // Validar os dados recebidos
             $validated = $request->validate([
                 'person_name' => 'required|string|max:255',
                 'email' => 'required|email|max:255',
@@ -43,6 +50,10 @@ class AppointmentController extends Controller
                 'veterinarian_id' => 'nullable|exists:veterinarians,id',
             ]);
 
+            // Associar o agendamento ao usuário logado
+            $validated['user_id'] = auth()->id();
+
+            // Criar o agendamento
             $appointment = Appointment::create($validated);
 
             return response()->json([
@@ -50,10 +61,19 @@ class AppointmentController extends Controller
                 'data' => $appointment,
                 'message' => 'Appointment created successfully.'
             ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error.',
+                'errors' => $e->errors(),
+            ], 422);
+
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create appointment.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -141,6 +161,27 @@ class AppointmentController extends Controller
             'data' => $appointments,
             'message' => 'Appointments retrieved successfully.'
         ]);
+    }
+
+    public function myAppointments()
+    {
+        try {
+            $user = auth()->user();
+
+            $appointments = Appointment::where('user_id', $user->id)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $appointments,
+                'message' => 'Appointments retrieved successfully.'
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve appointments.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
 

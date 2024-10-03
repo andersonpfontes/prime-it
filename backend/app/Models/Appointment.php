@@ -38,4 +38,17 @@ class Appointment extends Model
     {
         return $this->belongsTo(Veterinarian::class)->withDefault();
     }
+
+    /**
+     * Mutator para o campo 'period'
+     * Garante que o 'period' sempre será salvo como uma string válida ('morning' ou 'afternoon')
+     */
+    public function setPeriodAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['period'] = $value['id'];
+        } else {
+            $this->attributes['period'] = $value;
+        }
+    }
 }
