@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
 use App\Models\Veterinarian;
 use Illuminate\Http\Request;
 use Exception;
@@ -69,26 +70,41 @@ class VeterinarianController extends Controller
     }
 
     // Atualizar um veterinário existente
-    public function update(Request $request, Veterinarian $veterinarian)
+    public function update(Request $request, Appointment $appointment)
     {
         try {
+
+            // Caso contrário, validação completa para atualização geral da marcação
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:veterinarians,email,' . $veterinarian->id,
-                'specialization' => 'nullable|string|max:255',
+                'person_name' => 'required|string|max:255',
+                'email' => 'required|email|max:255',
+                'animal_name' => 'required|string|max:255',
+                'animal_type' => 'required|string|max:255',
+                'age' => 'required|integer|min:0',
+                'symptoms' => 'required|string',
+                'appointment_date' => 'required|date',
+                'period' => 'required|in:morning,afternoon',
             ]);
 
-            $veterinarian->update($validated);
+            // Atualizar todos os campos da marcação
+            $appointment->update($validated);
 
             return response()->json([
                 'success' => true,
-                'data' => $veterinarian,
-                'message' => 'Veterinarian updated successfully.'
+                'data' => $appointment,
+                'message' => 'Appointment updated successfully.'
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update veterinarian.',
+                'message' => 'Failed to update appointment.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

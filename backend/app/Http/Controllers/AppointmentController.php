@@ -98,9 +98,14 @@ class AppointmentController extends Controller
     // Atualizar uma marcação existente
     public function update(Request $request, Appointment $appointment)
     {
-        try {
-            $this->authorize('update', $appointment);
+        if (is_array($request->period)) {
+            $request->merge([
+                'period' => $request->period['id']
+            ]);
+        }
 
+        try {
+            // Validar os dados recebidos
             $validated = $request->validate([
                 'person_name' => 'required|string|max:255',
                 'email' => 'required|email|max:255',
@@ -113,20 +118,64 @@ class AppointmentController extends Controller
                 'veterinarian_id' => 'nullable|exists:veterinarians,id',
             ]);
 
+            // Atualizar a marcação
             $appointment->update($validated);
 
             return response()->json([
                 'success' => true,
                 'data' => $appointment,
                 'message' => 'Appointment updated successfully.'
-            ]);
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error.',
+                'errors' => $e->errors(),
+            ], 422);
+
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update appointment.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
+    public function assignVeterinarian(Request $request, Appointment $appointment)
+    {
+        try {
+            // Validar apenas o campo veterinarian_id
+            $validated = $request->validate([
+                'veterinarian_id' => 'nullable|exists:veterinarians,id',
+            ]);
+
+            // Atualizar o veterinarian_id na marcação
+            $appointment->update([
+                'veterinarian_id' => $validated['veterinarian_id']
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $appointment,
+                'message' => 'Veterinarian assigned successfully.'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to assign veterinarian.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
     //filtro para marcações atribuídas ao médico
     public function getAppointmentsByVeterinarian(Request $request)
@@ -184,12 +233,49 @@ class AppointmentController extends Controller
         }
     }
 
+    public function getFilteredAppointments(Request $request)
+    {
+        $user = auth()->user();
+
+        // Encontrar o veterinário logado com base no user_id
+        $veterinarian = Veterinarian::where('user_id', $user->id)->first();
+
+        if (!$veterinarian) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veterinarian not found for the authenticated user.',
+            ], 404);
+        }
+
+        // Iniciar a query para buscar as marcações atribuídas ao veterinário
+        $query = Appointment::where('veterinarian_id', $veterinarian->id);
+
+        // Filtrar por data da consulta se fornecido
+        if ($request->has('appointment_date') && $request->appointment_date != '') {
+            $query->where('appointment_date', $request->appointment_date);
+        }
+
+        // Filtrar por tipo de animal se fornecido
+        if ($request->has('animal_type') && $request->animal_type != '') {
+            $query->where('animal_type', 'LIKE', '%' . $request->animal_type . '%');
+        }
+
+        // Executar a consulta e retornar os resultados
+        $appointments = $query->with('user')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $appointments,
+            'message' => 'Filtered appointments retrieved successfully.'
+        ]);
+    }
+
+
 
     // Deletar uma marcação
     public function destroy(Appointment $appointment)
     {
         try {
-            $this->authorize('delete', $appointment);
             $appointment->delete();
 
             return response()->json([
@@ -200,6 +286,7 @@ class AppointmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete appointment.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

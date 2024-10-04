@@ -28,6 +28,10 @@ Route::group(['middleware' => 'auth:api'], function () {
 
     // Rotas de veterinários
     Route::apiResource('veterinarians', VeterinarianController::class);
+    Route::put('appointments/{appointment}/assign-veterinarian', [AppointmentController::class, 'assignVeterinarian']);
+    Route::get('veterinarian/appointments', [AppointmentController::class, 'getFilteredAppointments']);
+
+
     // Rota para médicos verem suas próprias marcações
     Route::get('veterinarian/appointments', [AppointmentController::class, 'getAppointmentsByVeterinarian']);
 });
